@@ -1,53 +1,22 @@
 import invariant from 'invariant'
-
-function escapeRegExp(string) {
-  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-}
+import PathToRegexp from 'path-to-regexp'
 
 function _compilePattern(pattern) {
-  let regexpSource = ''
-  const paramNames = []
-  const tokens = []
-
-  let match, lastIndex = 0, matcher = /:([a-zA-Z_$][a-zA-Z0-9_$]*)|\*\*|\*|\(|\)|\\\(|\\\)/g
-  while ((match = matcher.exec(pattern))) {
-    if (match.index !== lastIndex) {
-      tokens.push(pattern.slice(lastIndex, match.index))
-      regexpSource += escapeRegExp(pattern.slice(lastIndex, match.index))
+  const regexp = PathToRegexp(pattern)
+  const paramNames = regexp.keys.map(keyDescription => keyDescription.name)
+  const tokens = PathToRegexp.parse(pattern).map(token => {
+    // PathToRegexp return an array of string or object
+    // we just flaten it here
+    if (token !== null && typeof token === 'object') {
+      return token.name
+    } else {
+      return token
     }
-
-    if (match[1]) {
-      regexpSource += '([^/]+)'
-      paramNames.push(match[1])
-    } else if (match[0] === '**') {
-      regexpSource += '(.*)'
-      paramNames.push('splat')
-    } else if (match[0] === '*') {
-      regexpSource += '(.*?)'
-      paramNames.push('splat')
-    } else if (match[0] === '(') {
-      regexpSource += '(?:'
-    } else if (match[0] === ')') {
-      regexpSource += ')?'
-    } else if (match[0] === '\\(') {
-      regexpSource += '\\('
-    } else if (match[0] === '\\)') {
-      regexpSource += '\\)'
-    }
-
-    tokens.push(match[0])
-
-    lastIndex = matcher.lastIndex
-  }
-
-  if (lastIndex !== pattern.length) {
-    tokens.push(pattern.slice(lastIndex, pattern.length))
-    regexpSource += escapeRegExp(pattern.slice(lastIndex, pattern.length))
-  }
+  })
 
   return {
     pattern,
-    regexpSource,
+    regexp,
     paramNames,
     tokens
   }
@@ -87,18 +56,9 @@ export function matchPattern(pattern, pathname) {
   if (pattern.charAt(0) !== '/') {
     pattern = `/${pattern}`
   }
-  let { regexpSource, paramNames, tokens } = compilePattern(pattern)
+  let { regexp, paramNames } = compilePattern(pattern)
 
-  if (pattern.charAt(pattern.length - 1) !== '/') {
-    regexpSource += '/?' // Allow optional path separator at end.
-  }
-
-  // Special-case patterns like '*' for catch-all routes.
-  if (tokens[tokens.length - 1] === '*') {
-    regexpSource += '$'
-  }
-
-  const match = pathname.match(new RegExp(`^${regexpSource}`, 'i'))
+  const match = pathname.match(regexp)
   if (match == null) {
     return null
   }

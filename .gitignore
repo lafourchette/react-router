@@ -5,3 +5,8 @@ lerna-debug.log
 coverage
 packages
 website
+
+#For release only
+.*rc
+*.js
+modules/

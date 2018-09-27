@@ -7,6 +7,10 @@ packages
 website
 
 #For release only
-.*rc
-*.js
+.babelrc
+.eslintrc
+tests.*.js
+webpack.config.js
 modules/
+karma.conf.js
+scripts/
